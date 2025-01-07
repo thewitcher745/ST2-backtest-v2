@@ -49,3 +49,7 @@ class ZigZagDf(TypedDataFrame):
     @property
     def pivot_type(self) -> pd.Series:
         return self['pivot_type']
+
+    @property
+    def formation_time(self) -> pd.Series:
+        return self['formation_time']

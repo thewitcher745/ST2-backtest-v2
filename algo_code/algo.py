@@ -56,6 +56,7 @@ class Algo:
         valley_boolfilter = pure_valley_boolfilter | (bidir_boolfilter & (self.pair_df.candle_color == 'red'))
 
         zigzag_df: dt.ZigZagDf = dt.ZigZagDf(pd.DataFrame(index=self.pair_df.index))
+        zigzag_df['time'] = self.pair_df.time
         zigzag_df['pivot_type'] = ''
 
         # Apply the peak and valley boolean filter
@@ -64,6 +65,12 @@ class Algo:
 
         # Filter out the non-set values
         zigzag_df = zigzag_df[zigzag_df.pivot_type != '']
+
+        # Each zigzag pivot is confirmed whenever the next pivot is of a different type. This is done by shifting the pivot_type column by 1 and
+        # comparing it to the current pivot_type column. If they are different, the pivot is confirmed. The formation time of the current pivot is
+        # set to the time of the next pivot. This line sets the formation of each pivot to the time of its next row, and the consecutive
+        # non-changing rows are later filtered out.
+        zigzag_df['formation_time'] = zigzag_df.shift(-1).time
 
         # Set the pivot_value column of the zigzag_df to the corresponding candle's high from self.pair_df if it is a peak, and the low if it's a
         # valley.
