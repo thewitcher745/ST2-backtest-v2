@@ -1,4 +1,4 @@
-# ST5 Backtest v2
+# ST2 Backtest v2
 
 This project is a backtesting framework for financial data, specifically designed to work with cached data in the `.hdf5` format. It includes features
 for logging, global configuration settings, and calculating a lag-based zigzag on the data and forming positions using it.
@@ -15,8 +15,8 @@ for logging, global configuration settings, and calculating a lag-based zigzag o
 
 1. **Clone the Repository**: Clone the repository to your local machine.
     ```bash
-    git clone https://github.com/thewitcher745/ST5-backtest-v2.git
-    cd ST5-backtest-v2
+    git clone https://github.com/thewitcher745/ST2-backtest-v2.git
+    cd ST2-backtest-v2
     ```
 
 2. **Install Requirements**: Install the required dependencies, preferably in a virtualenv.
