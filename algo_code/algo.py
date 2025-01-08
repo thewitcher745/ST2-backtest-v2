@@ -1,8 +1,7 @@
 import pandas as pd
 from logging import Logger
-from typing import Optional
-
-from line_profiler import profile
+from typing import Optional, Union
+import numpy as np
 
 from algo_code.order_block import OrderBlock
 from utils.logger import LoggerSingleton
@@ -23,27 +22,22 @@ class Algo:
         self.symbol: str = symbol
         self.zigzag_df: Optional[dt.ZigZagDf] = None
 
-    def find_relative_pivot(self, pivot_pdi: int, delta: int) -> int | None:
+    def find_relative_pivot(self, zigzag_pdi, idx, delta) -> int | None:
         """
-        Finds the relative pivot to the pivot at the given index.
+            Finds the relative pivot index in the zigzag pattern.
 
-        Args:
-            pivot_pdi (int): The pdi of the pivot to find the relative pivot for.
-            delta (int): The distance from the pivot to the relative pivot.
+            Args:
+                zigzag_pdi (np.ndarray): Array of pivot indices.
+                idx (int): Current pivot index.
+                delta (int): Number of pivots to move forward or backward.
 
-        Returns:
-            int: The pdi of the relative pivot.
-        """
-
-        # zigzag_idx is the zigzag_df index of the current pivot
+            Returns:
+                int | None: The pivot index after moving `delta` pivots from the current pivot, or None if out of bounds.
+            """
         try:
-            # Get the index of the current pivot
-            zigzag_idx = self.zigzag_df.index[self.zigzag_df.pdi == pivot_pdi][0]
-            # Return the pdi of the relative pivot
-            return self.zigzag_df.iloc[zigzag_idx + delta].pdi
-
+            zigzag_idx = np.where(zigzag_pdi == idx)[0][0]
+            return zigzag_pdi[zigzag_idx + delta]
         except IndexError:
-            # Handle the case where the index is out of bounds
             return None
 
     def init_zigzag(self) -> None:
@@ -104,7 +98,7 @@ class Algo:
     def find_msb_points(self) -> dt.MSBPointsDf:
         """
         This function will look for "MSB points". These are points that are formed when we have a candle which breaks the fib_retracement level of
-        a pivot, meaning, for example for a valley, this means a candle wwould have to have a lower low than the fib_retracement level of the valley,
+        a pivot, meaning, for example for a valley, this means a candle would have to have a lower low than the fib_retracement level of the valley,
         which is next_peak - (next_peak-current_valley) * (1 + fib_rettracement). Same goes for peaks in the opposite direction. The candle which
         breaks this level sets the formation index for the MSB, which is the index after which the position from the MSB is formed.
 
@@ -112,49 +106,96 @@ class Algo:
             dt.MSBPointsDf: A dataframe
         """
 
-        def find_msb(pivot_type: str, comparison_op, threshold_op):
-            msb_df_dict_list = []
-            indices = self.zigzag_df[
-                (self.zigzag_df.pivot_type == pivot_type) &
-                (comparison_op(self.zigzag_df.pivot_type.shift(-1), self.zigzag_df.pivot_type))
-                ].pdi.to_numpy()
+        zigzag_pdi = self.zigzag_df['pdi'].to_numpy()
+        next_pdi = np.roll(zigzag_pdi, -1)[:-1]
+        next_next_pdi = np.roll(zigzag_pdi, -2)[:-2]
+        pivot_types = self.zigzag_df['pivot_type'].to_numpy()
+        pivot_values = self.zigzag_df['pivot_value'].to_numpy()
+        next_pivot_values = np.roll(pivot_values, -1)[:-1]
+        next_next_pivot_values = np.roll(pivot_values, -2)[:-2]
 
-            for idx in indices[:-1]:
-                # The pivot immediately after the current one, of the opposite type.
-                next_pivot = self.find_relative_pivot(idx, 1)
-                # The pivot after the next pivot, of the same type as the current pivot.
-                next_next_pivot = self.find_relative_pivot(idx, 2)
+        pair_df_low = self.pair_df['low'].to_numpy()
+        pair_df_high = self.pair_df['high'].to_numpy()
 
-                msb_formation_search_window: dt.PairDf = self.pair_df.iloc[next_pivot:next_next_pivot + 1]
+        def find_msb(pivot_type_to_find: str, comparison_op, threshold_op):
+            msb_list = []
 
-                current_pivot_value = self.zigzag_df.loc[self.zigzag_df.pdi == idx, 'pivot_value'].iat[0]
-                next_pivot_value = self.zigzag_df.loc[self.zigzag_df.pdi == next_pivot, 'pivot_value'].iat[0]
+            # Set indices to be the indices of the pivot points of the specified type, and those that pass the comparison test. The comparison test
+            # filters out the valleys that are followed by lower valleys, and peaks that are followed by higher peaks. The [0] is there because
+            # np.where returns a tuple, one element for each dimension of the array, but this is a 1-D array.
+            potential_msb_zigzag_indices = np.where(
+                (pivot_types[:-2] == pivot_type_to_find) & comparison_op(pivot_values[:-2], next_next_pivot_values))[0]
 
-                # The threshold that needs to be broken. Calculated separately for each box type  but aggregated.
-                msb_threshold = threshold_op(next_pivot_value, abs(next_pivot_value - current_pivot_value))
+            # Calculate the MSB threshold for each pivot that has an index in potential_msb_indices
+            msb_thresholds = threshold_op(pivot_values[:-1], next_pivot_values)[potential_msb_zigzag_indices]
 
+            # Form search windows for each zigzag pivot index in potential_msb_zigzag_indices. Then in that search window, look for candles that
+            # break the msb_threshold. Each search window is a series of highs or lows, depending on the pivot type, from the next pivot to the
+            # next-next pivot.
+
+            pair_df_of_type = pair_df_high
+            if pivot_type_to_find == 'valley':
+                pair_df_of_type = pair_df_low
+
+            for counter, zigzag_idx in enumerate(potential_msb_zigzag_indices):
+                # These indices can apparently go out of bounds, so we need to catch that
                 try:
-                    # The candle that breaks the MSB threshold
-                    msb_forming_candle_pdi = msb_formation_search_window.index[msb_formation_search_window.low < msb_threshold][
-                        0] if pivot_type == 'valley' else msb_formation_search_window.index[msb_formation_search_window.high > msb_threshold][0]
-
-                    msb_df_dict_list.append({
-                        'type': 'short' if pivot_type == 'valley' else 'long',
-                        'pdi': idx,
-                        'msb_value': current_pivot_value,
-                        'formation_pdi': msb_forming_candle_pdi
-                    })
-
+                    search_window = pair_df_of_type[next_pdi[zigzag_idx]:next_next_pdi[zigzag_idx] + 1]
+                    msb_threshold = msb_thresholds[counter]
                 except IndexError:
                     continue
 
-            return msb_df_dict_list
+                if pivot_type_to_find == 'valley':
+                    msb_breaking_candles_search_window_idx = np.where(search_window < msb_threshold)[0]
+                else:
+                    msb_breaking_candles_search_window_idx = np.where(search_window > msb_threshold)[0]
+
+                if len(msb_breaking_candles_search_window_idx) > 0:
+                    first_breaking_candle_search_window_idx = msb_breaking_candles_search_window_idx[0]
+
+                    # msb_breaking_candle_search_window_idx is the index of the candle LOCAL TO SEARCH WINDOW which breaks the MSB threshold. This has to be
+                    # converted to regular PDI to be usable. This can be easily done by summing its value with the next_pdi value.
+                    formation_pdi = next_pdi[zigzag_idx] + first_breaking_candle_search_window_idx
+
+                    msb_list.append({
+                        'type': 'short' if pivot_type_to_find == 'valley' else 'long',
+                        'pdi': zigzag_pdi[zigzag_idx],
+                        'msb_value': pivot_values[zigzag_idx],
+                        'formation_pdi': formation_pdi
+                    })
+
+            return msb_list
 
         fib_retracement_increment_factor = 1 + constants.fib_retracement_coeff
-        short_msbs = find_msb('valley', lambda x, y: x < y, lambda x, y: x - y * fib_retracement_increment_factor)
-        long_msbs = find_msb('peak', lambda x, y: x > y, lambda x, y: x + y * fib_retracement_increment_factor)
+        short_msbs = find_msb('valley', lambda current_val, next_next_val: next_next_val < current_val,
+                              lambda current_val, next_val: next_val - (next_val - current_val) * fib_retracement_increment_factor)
+        long_msbs = find_msb('peak', lambda current_val, next_next_val: next_next_val > current_val,
+                             lambda current_val, next_val: next_val + (current_val - next_val) * fib_retracement_increment_factor)
 
         return dt.MSBPointsDf(short_msbs + long_msbs)
+
+    def find_relative_pivot_old(self, pivot_pdi: int, delta: int) -> int | None:
+        """
+        Finds the relative pivot to the pivot at the given index.
+
+        Args:
+            pivot_pdi (int): The pdi of the pivot to find the relative pivot for.
+            delta (int): The distance from the pivot to the relative pivot.
+
+        Returns:
+            int: The pdi of the relative pivot.
+        """
+
+        # zigzag_idx is the zigzag_df index of the current pivot
+        try:
+            # Get the index of the current pivot
+            zigzag_idx = self.zigzag_df.index[self.zigzag_df.pdi == pivot_pdi][0]
+            # Return the pdi of the relative pivot
+            return self.zigzag_df.iloc[zigzag_idx + delta].pdi
+
+        except IndexError:
+            # Handle the case where the index is out of bounds
+            return None
 
     def find_order_blocks(self):
         """
@@ -184,3 +225,32 @@ class Algo:
                 continue
 
         return order_blocks
+
+    def convert_pdis_to_times(self, pdis: Union[int, list[int]]) -> Union[pd.Timestamp, list[pd.Timestamp], None]:
+        """
+        Convert a list (or a single) of PDIs to their corresponding times using algo_code.pair_df.
+
+        Args:
+            pdis (list[int]): List of PDIs to convert.
+
+        Returns:
+            list[pd.Timestamp]: List of corresponding times.
+        """
+
+        if pdis is None:
+            return None
+
+        if not isinstance(pdis, list):
+            pdis = [pdis]
+
+        if len(pdis) == 0:
+            return []
+
+        # Map PDIs to their corresponding times
+        times = [self.pair_df.iloc[pdi].time for pdi in pdis]
+
+        # If it's a singular entry, return it as a single timestamp
+        if len(times) == 1:
+            return times[0]
+
+        return list(times)
