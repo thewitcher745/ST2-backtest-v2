@@ -2,6 +2,7 @@ import pandas as pd
 from logging import Logger
 from typing import Optional, Union
 import numpy as np
+from line_profiler import profile
 
 from algo_code.order_block import OrderBlock
 from utils.logger import LoggerSingleton
@@ -37,7 +38,7 @@ class Algo:
             """
         try:
             zigzag_idx = np.where(zigzag_pdi == idx)[0][0]
-            return zigzag_pdi[zigzag_idx + delta]
+            return int(zigzag_pdi[zigzag_idx + delta])
         except IndexError:
             return None
 
@@ -175,7 +176,7 @@ class Algo:
 
         return dt.MSBPointsDf(short_msbs + long_msbs)
 
-    def find_order_blocks(self):
+    def find_order_blocks(self) -> list[OrderBlock]:
         """
         This function will use the MSB points to find order blocks. The order blocks are formed on the last candle on a leg that has the correct
         color. The leg should start with an MSB point. For "long" MSB points, the order block will form on the last red candle in the leg. For "short"
@@ -223,6 +224,40 @@ class Algo:
 
         self.order_blocks = order_blocks
         return order_blocks
+
+    def process_concurrent_order_blocks(self):
+        """
+        This function will make sure that only a maximum of max_concurrent number of OB's are always active in each direction. When a new OB is
+        introduced, meaning when it's formation_pdi is reached, the oldest OB in the same direction will be closed. That is to say, at all times, only
+        the most recent max_concurrent OB's will be active in each direction.
+        """
+        short_order_blocks = sorted([ob for ob in self.order_blocks if ob.type == 'short'], key=lambda ob: ob.formation_pdi)
+        long_order_blocks = sorted([ob for ob in self.order_blocks if ob.type == 'long'], key=lambda ob: ob.formation_pdi)
+
+        active_long_obs = []
+        active_short_obs = []
+
+        for ob in long_order_blocks:
+            # print(ob.formation_pdi)
+            # Close the oldest OB if the limit is exceeded
+            if len(active_long_obs) >= constants.max_concurrent:
+                oldest_ob = active_long_obs.pop(0)
+                oldest_ob.end_pdi = ob.formation_pdi - 1
+                # print(f'Max concurrent OB reached. Set end_pdi for {oldest_ob} to {ob.formation_pdi - 1}')
+
+            # Add the new OB to the active list
+            active_long_obs.append(ob)
+
+        for ob in short_order_blocks:
+            # print(ob.formation_pdi)
+            # Close the oldest OB if the limit is exceeded
+            if len(active_short_obs) >= constants.max_concurrent:
+                oldest_ob = active_short_obs.pop(0)
+                oldest_ob.end_pdi = ob.formation_pdi - 1
+                # print(f'Max concurrent OB reached. Set end_pdi for {oldest_ob} to {ob.formation_pdi - 1}')
+
+            # Add the new OB to the active list
+            active_short_obs.append(ob)
 
     def convert_pdis_to_times(self, pdis: Union[int, list[int]]) -> Union[pd.Timestamp, list[pd.Timestamp], None]:
         """

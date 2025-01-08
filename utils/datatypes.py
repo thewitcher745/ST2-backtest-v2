@@ -66,6 +66,7 @@ class Candle(NamedTuple):
     open: float = None
     candle_color: str = 'green'
 
+
 # Define the named tuple
 class MSBPoint(NamedTuple):
     pdi: int

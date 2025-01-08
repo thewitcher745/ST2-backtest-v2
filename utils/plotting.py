@@ -90,7 +90,6 @@ class PlottingTool:
                            self.pair_df.iloc[order_block.base_candle_pdi].time not in [ob_drawing.start_time for ob_drawing in self.ob_drawings]]
 
         self.draw_order_blocks(new_obs_to_draw)
-        print(f"Currently drawn order blocks {len(self.ob_drawings)}")
 
     def draw_candlesticks(self, pair_df: dt.PairDf):
         self.pair_df = pair_df
@@ -112,12 +111,7 @@ class PlottingTool:
     def draw_order_blocks(self, order_blocks: list[OrderBlock]):
         for order_block in order_blocks:
             ob_start_time = self.pair_df.iloc[order_block.base_candle_pdi].time
-            ob_end_time = order_block.end_time
-            if ob_end_time is None:
-                try:
-                    ob_end_time = self.pair_df.iloc[order_block.base_candle_pdi + 3].time
-                except IndexError:
-                    ob_end_time = self.pair_df.iloc[-1].time
+            ob_end_time = self.pair_df.iloc[order_block.end_pdi].time
 
             ob_formation_time = self.pair_df.iloc[order_block.formation_pdi].time
             ob_start_value = order_block.top
