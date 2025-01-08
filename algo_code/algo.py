@@ -153,8 +153,8 @@ class Algo:
                 if len(msb_breaking_candles_search_window_idx) > 0:
                     first_breaking_candle_search_window_idx = msb_breaking_candles_search_window_idx[0]
 
-                    # msb_breaking_candle_search_window_idx is the index of the candle LOCAL TO SEARCH WINDOW which breaks the MSB threshold. This has to be
-                    # converted to regular PDI to be usable. This can be easily done by summing its value with the next_pdi value.
+                    # msb_breaking_candle_search_window_idx is the index of the candle LOCAL TO SEARCH WINDOW which breaks the MSB threshold.
+                    # This has to be converted to regular PDI to be usable. This can be easily done by summing its value with the next_pdi value.
                     formation_pdi = next_pdi[zigzag_idx] + first_breaking_candle_search_window_idx
 
                     msb_list.append({
@@ -174,29 +174,6 @@ class Algo:
 
         return dt.MSBPointsDf(short_msbs + long_msbs)
 
-    def find_relative_pivot_old(self, pivot_pdi: int, delta: int) -> int | None:
-        """
-        Finds the relative pivot to the pivot at the given index.
-
-        Args:
-            pivot_pdi (int): The pdi of the pivot to find the relative pivot for.
-            delta (int): The distance from the pivot to the relative pivot.
-
-        Returns:
-            int: The pdi of the relative pivot.
-        """
-
-        # zigzag_idx is the zigzag_df index of the current pivot
-        try:
-            # Get the index of the current pivot
-            zigzag_idx = self.zigzag_df.index[self.zigzag_df.pdi == pivot_pdi][0]
-            # Return the pdi of the relative pivot
-            return self.zigzag_df.iloc[zigzag_idx + delta].pdi
-
-        except IndexError:
-            # Handle the case where the index is out of bounds
-            return None
-
     def find_order_blocks(self):
         """
         This function will use the MSB points to find order blocks. The order blocks are formed on the last candle on a leg that has the correct
@@ -205,18 +182,22 @@ class Algo:
         """
 
         order_blocks: list[OrderBlock] = []
+        candle_colors = self.pair_df['candle_color'].to_numpy()
+        candle_color_numeric = np.where(candle_colors == 'green', 1, -1)
+
         for msb_point in self.find_msb_points().itertuples(index=False):
-            msb_point: dt.MSBPoint
             # Form the window to look for order blocks on
-            next_pivot_pdi = self.find_relative_pivot(msb_point.pdi, 1)
-            ob_base_candle_search_window: dt.PairDf = self.pair_df.iloc[msb_point.pdi:next_pivot_pdi+1]
+            next_pivot_pdi = self.find_relative_pivot(self.zigzag_df['pdi'].to_numpy(), msb_point.pdi, 1)
+
+            search_window_candle_colors = candle_color_numeric[msb_point.pdi:next_pivot_pdi + 1]
 
             # Find the last candle in the leg that has the correct color
-            correct_color = 'red' if msb_point.type == 'long' else 'green'
+            correct_color = -1 if msb_point.type == 'long' else 1
 
             # The try statement is here to catch cases where no appropriate candle is found
             try:
-                base_candle = ob_base_candle_search_window[ob_base_candle_search_window.candle_color == correct_color].iloc[-1]
+                base_candle_pdi = np.where(search_window_candle_colors == correct_color)[0][-1] + msb_point.pdi
+                base_candle = self.pair_df.iloc[base_candle_pdi]
 
                 ob = OrderBlock(base_candle, msb_point.type, formation_pdi=msb_point.formation_pdi)
                 order_blocks.append(ob)
