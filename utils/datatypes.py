@@ -37,6 +37,7 @@ class PairDf(TypedDataFrame):
         return self['candle_color']
 
 
+
 class ZigZagDf(TypedDataFrame):
     @property
     def time(self) -> pd.Series:
@@ -51,5 +52,23 @@ class ZigZagDf(TypedDataFrame):
         return self['pivot_type']
 
     @property
-    def formation_time(self) -> pd.Series:
-        return self['formation_time']
+    def pdi(self):
+        return self['pdi']
+
+
+class MSBPointsDf(TypedDataFrame):
+    @property
+    def pdi(self) -> pd.Series:
+        return self['pdi']
+
+    @property
+    def msb_value(self):
+        return self['msb_value']
+
+    @property
+    def type(self):
+        return self['type']
+
+    @property
+    def formation_pdi(self):
+        return self['formation_pdi']

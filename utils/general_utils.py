@@ -34,7 +34,7 @@ class PlottingTool:
         self.pair_df: dt.PairDf | None = None
 
     def register_msb_point_updates(self, msb_points_df: dt.MSBPointsDf):
-        # Subscribe to the even of the chart's range change
+        # Subscribe to the event of the chart's range change
         self.chart.events.range_change += lambda chart, bars_before, bars_after: self.update_markers_on_range_change(chart,
                                                                                                                      bars_before,
                                                                                                                      bars_after,
