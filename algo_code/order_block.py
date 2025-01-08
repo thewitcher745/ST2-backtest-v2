@@ -2,12 +2,14 @@ import pandas as pd
 
 import utils.general_utils as gen_utils
 from algo_code.position import Position
-
+import utils.datatypes as dt
 
 class OrderBlock:
-    def __init__(self, base_candle: pd.Series, ob_type: str, formation_pdi: int):
+    def __init__(self, base_candle: pd.Series | dt.Candle, ob_type: str, formation_pdi: int):
         if isinstance(base_candle, pd.Series):
             self.base_candle_pdi = base_candle.name
+        elif isinstance(base_candle, dt.Candle):
+            self.base_candle_pdi = base_candle.pdi
         else:
             self.base_candle_pdi = base_candle.Index
 

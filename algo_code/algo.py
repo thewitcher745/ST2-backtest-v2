@@ -21,6 +21,7 @@ class Algo:
         self.pair_df: dt.PairDf = pair_df
         self.symbol: str = symbol
         self.zigzag_df: Optional[dt.ZigZagDf] = None
+        self.order_blocks: Optional[list[OrderBlock]] = None
 
     def find_relative_pivot(self, zigzag_pdi, idx, delta) -> int | None:
         """
@@ -185,9 +186,18 @@ class Algo:
         candle_colors = self.pair_df['candle_color'].to_numpy()
         candle_color_numeric = np.where(candle_colors == 'green', 1, -1)
 
+        pair_df_highs = self.pair_df['high'].to_numpy()
+        pair_df_lows = self.pair_df['low'].to_numpy()
+        pair_df_times = self.pair_df['time'].to_numpy()
+        zigzag_pdi = self.zigzag_df['pdi'].to_numpy()
         for msb_point in self.find_msb_points().itertuples(index=False):
+            msb_point: dt.MSBPoint
             # Form the window to look for order blocks on
-            next_pivot_pdi = self.find_relative_pivot(self.zigzag_df['pdi'].to_numpy(), msb_point.pdi, 1)
+            try:
+                zigzag_idx = np.where(zigzag_pdi == msb_point.pdi)[0][0]
+                next_pivot_pdi = int(zigzag_pdi[zigzag_idx + 1])
+            except IndexError:
+                continue
 
             search_window_candle_colors = candle_color_numeric[msb_point.pdi:next_pivot_pdi + 1]
 
@@ -196,15 +206,22 @@ class Algo:
 
             # The try statement is here to catch cases where no appropriate candle is found
             try:
-                base_candle_pdi = np.where(search_window_candle_colors == correct_color)[0][-1] + msb_point.pdi
-                base_candle = self.pair_df.iloc[base_candle_pdi]
+                base_candle_pdi: int = int(np.where(search_window_candle_colors == correct_color)[0][-1]) + msb_point.pdi
+                base_candle_time = pd.Timestamp(pair_df_times[base_candle_pdi])
+                base_candle_high = pair_df_highs[base_candle_pdi]
+                base_candle_low = pair_df_lows[base_candle_pdi]
 
+                base_candle = dt.Candle(pdi=base_candle_pdi,
+                                        time=base_candle_time,
+                                        high=base_candle_high,
+                                        low=base_candle_low)
                 ob = OrderBlock(base_candle, msb_point.type, formation_pdi=msb_point.formation_pdi)
                 order_blocks.append(ob)
 
             except IndexError:
                 continue
 
+        self.order_blocks = order_blocks
         return order_blocks
 
     def convert_pdis_to_times(self, pdis: Union[int, list[int]]) -> Union[pd.Timestamp, list[pd.Timestamp], None]:

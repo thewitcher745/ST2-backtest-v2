@@ -57,6 +57,15 @@ class ZigZagDf(TypedDataFrame):
         return self['pdi']
 
 
+class Candle(NamedTuple):
+    pdi: int
+    time: pd.Timestamp
+    high: float
+    low: float
+    close: float = None
+    open: float = None
+    candle_color: str = 'green'
+
 # Define the named tuple
 class MSBPoint(NamedTuple):
     pdi: int
