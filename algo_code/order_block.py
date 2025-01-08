@@ -1,5 +1,7 @@
 import pandas as pd
+
 import utils.general_utils as gen_utils
+from algo_code.position import Position
 
 
 class OrderBlock:
@@ -25,6 +27,9 @@ class OrderBlock:
 
         # The position formed by the OrderBLock
         self.position = Position(self)
+
+        # Only useful for plotting
+        self.end_time = None
 
     def __repr__(self):
         return f"OB {self.id} ({self.type})"

@@ -112,21 +112,27 @@ class PlottingTool:
     def draw_order_blocks(self, order_blocks: list[OrderBlock]):
         for order_block in order_blocks:
             ob_start_time = self.pair_df.iloc[order_block.base_candle_pdi].time
-            ob_end_time = self.pair_df.iloc[order_block.base_candle_pdi + 20].time
+            ob_end_time = order_block.end_time
+            if ob_end_time is None:
+                try:
+                    ob_end_time = self.pair_df.iloc[order_block.base_candle_pdi + 3].time
+                except IndexError:
+                    ob_end_time = self.pair_df.iloc[-1].time
+
             ob_formation_time = self.pair_df.iloc[order_block.formation_pdi].time
             ob_start_value = order_block.top
             ob_end_value = order_block.bottom
 
             color = 'rgba(10, 110, 17, 0.6)' if order_block.type == 'long' else 'rgba(130, 5, 3, 0.6)'
-            inactive_color = 'rgba(10, 110, 17, 0.2)' if order_block.type == 'long' else 'rgba(130, 5, 3, 0.2)'
+            # inactive_color = 'rgba(10, 110, 17, 0.2)' if order_block.type == 'long' else 'rgba(130, 5, 3, 0.2)'
             border_color = 'rgba(10, 110, 17, 0.9)' if order_block.type == 'long' else 'rgba(130, 5, 3, 0.9)'
-            inactive_border_color = 'rgba(10, 110, 17, 0.6)' if order_block.type == 'long' else 'rgba(130, 5, 3, 0.6)'
+            # inactive_border_color = 'rgba(10, 110, 17, 0.6)' if order_block.type == 'long' else 'rgba(130, 5, 3, 0.6)'
 
-            ob_inactive_drawing = self.chart.box(ob_start_time, ob_start_value, ob_formation_time, ob_end_value, color=inactive_border_color,
-                                                 fill_color=inactive_color)
+            # ob_inactive_drawing = self.chart.box(ob_start_time, ob_start_value, ob_formation_time, ob_end_value, color=inactive_border_color,
+            #                                      fill_color=inactive_color)
             ob_drawing = self.chart.box(ob_formation_time, ob_start_value, ob_end_time, ob_end_value, color=border_color, fill_color=color)
 
-            self.ob_drawings.append(ob_inactive_drawing)
+            # self.ob_drawings.append(ob_inactive_drawing)
             self.ob_drawings.append(ob_drawing)
 
     def show(self):
