@@ -1,19 +1,19 @@
-from lightweight_charts import Chart
-
 from algo_code.algo import Algo
 from utils.general_utils import load_local_data
-from utils.plotting import PlottingTool
 from utils import constants
+from utils.plotting import PlottingTool
 
 pair_name = "BTCUSDT"
 timeframe = constants.timeframe
 
-pair_df = load_local_data(pair_name, timeframe)[:70000]
+pair_df = load_local_data(pair_name, timeframe)
 
 algo = Algo(pair_df, pair_name)
 algo.init_zigzag()
 msb_points_df = algo.find_msb_points()
+print(msb_points_df)
 order_blocks = algo.find_order_blocks()
+position_list = [ob.position for ob in order_blocks]
 
 if __name__ == '__main__':
     pt = PlottingTool()
