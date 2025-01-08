@@ -1,5 +1,5 @@
 import pandas as pd
-from lightweight_charts import Chart
+import os
 
 import utils.datatypes as dt
 
@@ -24,6 +24,16 @@ def load_local_data(pair_name: str = "BTCUSDT", timeframe: str = "15m") -> dt.Pa
     pair_df['candle_color'] = pair_df.apply(lambda row: 'green' if row.close > row.open else 'red', axis=1)
 
     return dt.PairDf(pair_df)
+
+
+def get_pair_list(timeframe: str = '15m'):
+    # Get the pairs in cached_data/<timeframe> folder
+    pair_list = []
+    for file in os.listdir(f'./cached_data/{timeframe}'):
+        if file.endswith(".hdf5"):
+            pair_list.append(file.replace('.hdf5', ''))
+
+    return pair_list
 
 
 def convert_timestamp_to_readable(timestamp: pd.Timestamp) -> str:
