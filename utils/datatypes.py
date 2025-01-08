@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 import pandas as pd
 
 
@@ -37,7 +39,6 @@ class PairDf(TypedDataFrame):
         return self['candle_color']
 
 
-
 class ZigZagDf(TypedDataFrame):
     @property
     def time(self) -> pd.Series:
@@ -56,19 +57,27 @@ class ZigZagDf(TypedDataFrame):
         return self['pdi']
 
 
+# Define the named tuple
+class MSBPoint(NamedTuple):
+    pdi: int
+    msb_value: float
+    type: str
+    formation_pdi: int
+
+
 class MSBPointsDf(TypedDataFrame):
     @property
-    def pdi(self) -> pd.Series:
+    def pdi(self) -> pd.Series | int:
         return self['pdi']
 
     @property
-    def msb_value(self):
+    def msb_value(self) -> pd.Series | float:
         return self['msb_value']
 
     @property
-    def type(self):
+    def type(self) -> pd.Series | str:
         return self['type']
 
     @property
-    def formation_pdi(self):
+    def formation_pdi(self) -> pd.Series | int:
         return self['formation_pdi']

@@ -4,6 +4,7 @@ from typing import Optional
 
 from line_profiler import profile
 
+from algo_code.order_block import OrderBlock
 from utils.logger import LoggerSingleton
 import utils.datatypes as dt
 from utils import constants
@@ -116,7 +117,7 @@ class Algo:
             indices = self.zigzag_df[
                 (self.zigzag_df.pivot_type == pivot_type) &
                 (comparison_op(self.zigzag_df.pivot_type.shift(-1), self.zigzag_df.pivot_type))
-                ].pdi.tolist()
+                ].pdi.to_numpy()
 
             for idx in indices[:-1]:
                 # The pivot immediately after the current one, of the opposite type.
@@ -155,10 +156,31 @@ class Algo:
 
         return dt.MSBPointsDf(short_msbs + long_msbs)
 
-    def find_order_block(self):
+    def find_order_blocks(self):
         """
         This function will use the MSB points to find order blocks. The order blocks are formed on the last candle on a leg that has the correct
-        color. The leg should start with an MSB point. For "peak" MSB points,
-        Returns:
-
+        color. The leg should start with an MSB point. For "long" MSB points, the order block will form on the last red candle in the leg. For "short"
+        the order block's base candle would be the last green candle of the leg.
         """
+
+        order_blocks: list[OrderBlock] = []
+        for msb_point in self.find_msb_points().itertuples(index=False):
+            msb_point: dt.MSBPoint
+            # Form the window to look for order blocks on
+            next_pivot_pdi = self.find_relative_pivot(msb_point.pdi, 1)
+            ob_base_candle_search_window: dt.PairDf = self.pair_df.iloc[msb_point.pdi:next_pivot_pdi+1]
+
+            # Find the last candle in the leg that has the correct color
+            correct_color = 'red' if msb_point.type == 'long' else 'green'
+
+            # The try statement is here to catch cases where no appropriate candle is found
+            try:
+                base_candle = ob_base_candle_search_window[ob_base_candle_search_window.candle_color == correct_color].iloc[-1]
+
+                ob = OrderBlock(base_candle, msb_point.type, formation_pdi=msb_point.formation_pdi)
+                order_blocks.append(ob)
+
+            except IndexError:
+                continue
+
+        return order_blocks
