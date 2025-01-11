@@ -46,3 +46,16 @@ for logging, global configuration settings, and calculating a lag-based zigzag o
 - Added order block detection
 - Added dynamic, interactive order block charting using a customized event handling chart system
 - Various fixes and QoL changes to make working with the program smoother.
+
+### ver b0.4
+
+- Implemented optimized order block target and stoploss detection: Order blocks have "bounces" (aka multiple chances for entry after getting any exit
+  status but stoploss), as well as trailing stoploss configuration. The processing is done by forming "event arrays" which are arrays representing the
+  order of events as they happen after the formation of the order block.
+- Implemented maximum concurrency of order blocks: Now, the program will keep a set number of order blocks active at all times. Detection of newer
+  order blocks will set the end_pdi of the oldest order block in the memory to the formation_pdi of the most recenty found OB.
+- Extreme memory and processor efficiency improvement: Rewrote most intensive methods and functions (MSB point detection, order block detection) using
+  vectorized Numpy operations and arrays,
+  reslting in more than 600% increase in speed and an 80-90% decrease in execution time.
+- Added pair-list support: Now fetches the pairs to process from a folder and runs them in succession.
+- Updated the charting library with new end_pdi logic for the order blocks.

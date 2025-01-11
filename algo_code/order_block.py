@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pandas as pd
 
 import utils.general_utils as gen_utils
@@ -26,13 +28,20 @@ class OrderBlock:
         # Geometry
         self.top = base_candle.high
         self.bottom = base_candle.low
-        self.height = self.top - self.bottom
+        self.height = abs(self.top - self.bottom)
 
         # Each time an entry is achieved, the number of remaining bounces decreases by 1
         self.remaining_bounces = constants.max_bounces
 
         # The position formed by the OrderBLock
         self.position = Position(self)
+
+        # A list of positions that have been exit, this will be compiled into a report as the output.
+        self.exit_positions = []
+
+        # The events array is an array of events after the start (formation) of the order block for each candle. 0 means entry, -1 means (unmoved)
+        # stoploss, and 1, 2, 3 etc. mean the target hits.
+        self.events_array: Optional[list[float]] = None
 
         # Only useful for plotting
         self.end_time = None

@@ -1,0 +1,2 @@
+- Convert " to ' where applicable
+- Change dict-like column names to object-like column names in DataFrames and Series.

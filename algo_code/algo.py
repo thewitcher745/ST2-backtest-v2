@@ -22,7 +22,7 @@ class Algo:
         self.pair_df: dt.PairDf = pair_df
         self.symbol: str = symbol
         self.zigzag_df: Optional[dt.ZigZagDf] = None
-        self.order_blocks: Optional[list[OrderBlock]] = None
+        self.ob_list: Optional[list[OrderBlock]] = None
 
     def find_relative_pivot(self, zigzag_pdi, idx, delta) -> int | None:
         """
@@ -183,7 +183,7 @@ class Algo:
         the order block's base candle would be the last green candle of the leg.
         """
 
-        order_blocks: list[OrderBlock] = []
+        ob_list: list[OrderBlock] = []
         candle_colors = self.pair_df['candle_color'].to_numpy()
         candle_color_numeric = np.where(candle_colors == 'green', 1, -1)
 
@@ -216,14 +216,14 @@ class Algo:
                                         time=base_candle_time,
                                         high=base_candle_high,
                                         low=base_candle_low)
-                ob = OrderBlock(base_candle, msb_point.type, formation_pdi=msb_point.formation_pdi)
-                order_blocks.append(ob)
+                ob = OrderBlock(base_candle, msb_point.type, formation_pdi=msb_point.formation_pdi + 1)
+                ob_list.append(ob)
 
             except IndexError:
                 continue
 
-        self.order_blocks = order_blocks
-        return order_blocks
+        self.ob_list = ob_list
+        return ob_list
 
     def process_concurrent_order_blocks(self):
         """
@@ -231,8 +231,8 @@ class Algo:
         introduced, meaning when it's formation_pdi is reached, the oldest OB in the same direction will be closed. That is to say, at all times, only
         the most recent max_concurrent OB's will be active in each direction.
         """
-        short_order_blocks = sorted([ob for ob in self.order_blocks if ob.type == 'short'], key=lambda ob: ob.formation_pdi)
-        long_order_blocks = sorted([ob for ob in self.order_blocks if ob.type == 'long'], key=lambda ob: ob.formation_pdi)
+        short_order_blocks = sorted([ob for ob in self.ob_list if ob.type == 'short'], key=lambda ob: ob.formation_pdi)
+        long_order_blocks = sorted([ob for ob in self.ob_list if ob.type == 'long'], key=lambda ob: ob.formation_pdi)
 
         active_long_obs = []
         active_short_obs = []
@@ -287,3 +287,225 @@ class Algo:
             return times[0]
 
         return list(times)
+
+    @profile
+    def calc_events_array(self):
+        """
+        This function will return an array which represents the events that each candle triggers for each order block. The array will start from the
+        formation_pdi of each order block, and will have 0 for entry, -1 for stoploss, 0.5 for no even and >= 1 for each target triggered. This array
+        will later get processed to find the order of events and to find profit and loss.
+        """
+
+        # This method will use numpy vector operations for faster calculation. The values of the candles used for the events will be the highs and
+        # lows.
+        pair_df_highs = self.pair_df.high.to_numpy()
+        pair_df_lows = self.pair_df.low.to_numpy()
+
+        # The events will be calculated for each order block, and the results will be stored in a numpy array and attributed to the order block
+        # as an instance variable, OrderBlock.events_array.
+        for ob in self.ob_list:
+            ob: OrderBlock
+
+            pair_df_lows_after_formation = pair_df_lows[ob.formation_pdi:]
+            pair_df_highs_after_formation = pair_df_highs[ob.formation_pdi:]
+
+            if ob.type == 'long':
+                # The entry event will be triggered when the low of the candle is less than or equal to the entry price. These are the indices of
+                # candles whose lows are less than or equal to the entry price.
+                entry_level_events = pair_df_lows_after_formation <= ob.position.entry_price
+
+                # The entry event will be triggered when the low of the candle is less than or equal to the stoploss. These are the indices of
+                # candles whose lows are less than or equal to the stoploss.
+                stoploss_events = pair_df_lows_after_formation <= ob.position.stoploss
+
+                # The target_events list is a list whose elements represents events related to each target being hit. Each element is a list of events
+                # for that target. This means the 0-th element represents a list of indices of the candles which hit the 1-st target, the 1-st element
+                # represents the indices of the candles which hit the 2-nd target, and so on.
+                target_list_events = []
+                for target in ob.position.target_list:
+                    target_list_events.append(pair_df_highs_after_formation >= target)
+
+            else:
+                # Same comments as ob.type=="long", in reverse.
+                entry_level_events = pair_df_highs_after_formation >= ob.position.entry_price
+
+                stoploss_events = pair_df_highs_after_formation >= ob.position.stoploss
+
+                target_list_events = []
+                for target in ob.position.target_list:
+                    target_list_events.append(pair_df_lows_after_formation <= target)
+
+            # So now we have n_targets + 2 lists which represent the candles where events have happened. Now we need an array which contains
+            # what events EACH candle represents, so for every candle in pair_df there would be at most one event, and there are certain rules:
+            # 1) Targets and stop-losses may only happen exclusively after an entry is made, not even on the same candle.
+            # 2) Each candle may only have at most 1 sentiment.
+            # 3) Stop-losses take priority over targets if they happen on the same candle.
+
+            # The code now generates a numpy array the same size as pair_df - formation_pdi, which contains the order in which the events happened:
+            # 0.5 -> No event
+            # 0 -> Entry
+            # -1 -> Stoploss
+            # 1, 2, 3, ... -> Targets
+
+            # Initialize the events array with a default value (e.g., 0.5 for no event)
+            events_array = np.full_like(pair_df_lows_after_formation, 0.5)
+
+            # Set the target events (1, 2, 3, ... for targets), which will overwrite entry and stoploss events
+            for target_idx, target_events in enumerate(target_list_events):
+                events_array[target_events] = target_idx + 1
+
+            # Set the entry events (0 for entry). Entry events overwrite any target events.
+            events_array[entry_level_events] = 0
+
+            # Finally, set the stoploss events (-1 for stoploss), which will overwrite entry and target events.
+            events_array[stoploss_events] = -1
+
+            ob.events_array = events_array
+
+    def process_events_array(self):
+        """
+        Processes the events array for each order block. This means logically ordering the events and calculating the profit and loss for each order
+        block, as well as the exit statuses.
+        There are certain rules for processing the events.
+        1) Targets and stoplosses can only occur after entries have happened.
+        2) Entries can only happen within the active region, which is after the formation_pdi and before the end_time.
+        3) After a full target, an order block is still valid for entry for a maximum of constants.max_bounces times. The number of remaining bounces
+           for each order block will be saved to a property on it, and it will be reduced by 1 every time a full target happens.
+        4) After a stoploss, the order block will become unavailable for entry. This is achieved by setting OrderBlock.remaining_bounces to 0 after a
+           stoploss event has happened after entry without achieving any targets.
+        5) According to the trailing stoploss configuration (constants.trailing_sl_target_id), the stoploss will be placed at the entry once the
+           respective target has been hit. This means if trailing_sl_target_id==1, after target 1 is achieved, the next entry (0 in events_array) to
+           be hit would be the stoploss, and would result in the position exiting, but this would not trigger rule #4, and after a trailing stoploss
+           is hit, the OB is still valid for entry.
+
+        The OrderBlock.events_array for each block is an array which represents the events that happened after the formation_pdi of the OB. Each
+        element of the array represents one candle and its sentiment (event registered by the candle) and it can have values of -1 (for non-trailing
+        stoploss), 0 (for entry price level), 0.5 (for no event at all) or 1 through len(OrderBlock.position.target_list) for each target hit.
+        """
+        # The times array of pair_df, used for registering exit times in Position.exit()
+        pair_df_times = self.pair_df.time.to_numpy()
+
+        for ob in self.ob_list:
+            ob: OrderBlock
+
+            # The starting index of the event array check window. This gets updated when checking for bounces after the first.
+            event_array_start_index = 0
+
+            # The typecasting to float is because the events array is in float form
+            n_targets = float(len(ob.position.target_list))
+
+            # If there are bounces remaining for the OB, the entry is still valid. This is set to 0 after a stoploss event and reduced by 1 after each
+            # full target.
+            while ob.remaining_bounces > 0:
+                # The events array after the starting point
+                sliced_events_array = ob.events_array[event_array_start_index:]
+
+                # The index of the first entry, local to the sliced events array. This should eventually be added to the event_array_start_index to
+                # get the absolute distance from the formation of the OB.
+                try:
+                    first_entry_index = np.where(sliced_events_array == 0)[0][0]
+
+                    # If an entry is found, register it on the OB's position. The method throws an exception if the entry found isn't between the
+                    # formation_pdi and end_pdi of its parent order block.
+                    ob.position.enter(first_entry_index + event_array_start_index + ob.formation_pdi)
+
+                # If no entry is found, go on to the next OB.
+                except IndexError:
+                    break
+
+                # If a stoploss even has happened before any entry event, discard the order block completely.
+                try:
+                    first_stoploss_index = np.where(sliced_events_array == -1)[0][0]
+
+                    if first_stoploss_index <= first_entry_index:
+                        break
+
+                # If no stoploss event is found, continue with the code.
+                except IndexError:
+                    pass
+
+                events_after_entry = sliced_events_array[first_entry_index:]
+
+                last_target = 0
+                trailing_triggered = False
+                target_hit_pdis = []
+
+                for event_index, event in enumerate(events_after_entry):
+                    # 0.5 events (NO_EVENT candles) don't do anything.
+                    if event == 0.5:
+                        continue
+
+                    # Check for full target event
+                    if event == n_targets:
+                        ob.remaining_bounces -= 1
+
+                        # If a full-target event happens, the rest of the target hit PDI's list should be filled by the current PDI, assuming the
+                        # current candle has hit all the remaining targets.
+                        exit_pdi = first_entry_index + event_array_start_index + ob.formation_pdi + event_index
+                        target_hit_pdis.extend([exit_pdi] * (int(n_targets) - len(target_hit_pdis)))
+
+                        ob.position.exit(symbol=self.symbol,
+                                         pair_df_times=pair_df_times,
+                                         exit_status=f'FULL_TARGET_{int(n_targets)}',
+                                         exit_pdi=exit_pdi,
+                                         target_hit_pdis=target_hit_pdis,
+                                         exit_price=ob.position.target_list[-1]
+                                         )
+
+                        event_array_start_index += event_index + first_entry_index + 1
+
+                        break
+
+                    # Stoploss events. Register the last_event as the exit status, if it is 0, that means the position didn't hit any targets before
+                    # hitting the original stoploss. Otherwise, the exit status is registered with the last_event as it's highest target.
+                    elif event == -1:
+                        # Stoploss events prevent further bounces.
+                        ob.remaining_bounces = 0
+
+                        # If there was any target registered before the stoploss, the exit status is the highest target hit, if not it's 'STOPLOSS'.
+                        exit_status = 'STOPLOSS' if last_target == 0 else f'TARGET_{int(last_target)}'
+                        ob.position.exit(symbol=self.symbol,
+                                         pair_df_times=pair_df_times,
+                                         exit_status=exit_status,
+                                         exit_pdi=first_entry_index + event_array_start_index + ob.formation_pdi + event_index,
+                                         target_hit_pdis=target_hit_pdis,
+                                         exit_price=ob.position.stoploss
+                                         )
+
+                        break
+
+                    # Target events register a last event as a target. In this case, the stoploss is moved to the entry, so events of 0 will also
+                    # trigger a trailing stoploss event.
+                    elif event >= 1:
+                        # If the now-found target-hitting candle registers a higher target than the previously registered one, append it to the
+                        # targets hit.
+                        if event > last_target:
+                            target_hit_pdis.append(first_entry_index + event_array_start_index + ob.formation_pdi + event_index)
+                            last_target = event
+
+                        # The price level to put the trailing stoploss at. If the target is at that level, the trailing stoploss variable is set to
+                        # true. This means the next time price reaches a 0 event, it will trigger a TRAILING exit status code.
+                        if event == constants.trailing_sl_target_id:
+                            trailing_triggered = True
+
+                    # Entry price level events
+                    # If the event is a 0, that means the candle has hit an entry price level.
+                    elif event == 0:
+                        # If the trailing configuration hasn't triggered, continue to the next candle
+                        if not trailing_triggered:
+                            continue
+
+                        # If it has, trigger an exit from the position, and reduce remaining bounces by 1, since our OB is still valid for entry.
+                        else:
+                            ob.remaining_bounces -= 1
+                            ob.position.exit(symbol=self.symbol,
+                                             pair_df_times=pair_df_times,
+                                             exit_status=f'TARGET_{int(last_target)}',
+                                             exit_pdi=first_entry_index + event_array_start_index + ob.formation_pdi + event_index,
+                                             target_hit_pdis=target_hit_pdis,
+                                             exit_price=ob.position.entry_price
+                                             )
+
+                            event_array_start_index += event_index + first_entry_index + 1
+
+                            break
