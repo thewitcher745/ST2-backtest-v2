@@ -4,9 +4,9 @@ from algo_code.algo import Algo
 from utils.general_utils import load_local_data
 
 
-def run_algo(pair_name, timeframe) -> pd.DataFrame:
-    pair_df = load_local_data(pair_name, timeframe).reset_index()
-    algo = Algo(pair_df, pair_name)
+def run_algo(pair_name, params) -> list:
+    pair_df = load_local_data(pair_name, params.timeframe).reset_index()
+    algo = Algo(pair_df, pair_name, params)
     algo.init_zigzag()
     algo.find_msb_points()
     order_blocks = algo.find_order_blocks()
@@ -14,10 +14,8 @@ def run_algo(pair_name, timeframe) -> pd.DataFrame:
     algo.calc_events_array()
     algo.process_events_array()
 
-    exit_positions_list = []
+    pair_exit_positions = []
     for ob in order_blocks:
-        exit_positions_list.extend(ob.exit_positions)
+        pair_exit_positions.extend(ob.exit_positions)
 
-    pair_positions = pd.DataFrame(exit_positions_list)
-
-    return pair_positions
+    return pair_exit_positions

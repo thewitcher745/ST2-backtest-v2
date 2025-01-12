@@ -2,14 +2,13 @@ from typing import Union, Literal
 
 import numpy as np
 import pandas as pd
-from line_profiler import profile
 
 import algo_code.position_prices_setup as setup
 import utils.constants as constants
 
 
 class Position:
-    def __init__(self, parent_ob):
+    def __init__(self, parent_ob, params):
         self.parent_ob = parent_ob
         self.entry_price = parent_ob.top if parent_ob.type == "long" else parent_ob.bottom
 
@@ -27,8 +26,10 @@ class Position:
         self.target_list: np.ndarray = np.array([])
         self.stoploss = None
 
+        self.params = params
+
         # Set up the target list nd stoploss using a function which operates on the "self" object and directly manipulates the instance.
-        setup.default_1234(self)
+        setup.default_1234(self, params)
 
     def enter(self, entry_pdi: int):
         """
@@ -43,7 +44,7 @@ class Position:
             raise IndexError(f"Entry PDI {entry_pdi} is out of bounds for Order Block {self.parent_ob.id}")
 
         self.entry_pdi = entry_pdi
-        self.qty = constants.used_capital / self.entry_price
+        self.qty = self.params.used_capital / self.entry_price
         target_count = len(self.target_list)
         self.portioned_qty = np.array([self.qty / target_count] * target_count)
         self.status = "ENTERED"

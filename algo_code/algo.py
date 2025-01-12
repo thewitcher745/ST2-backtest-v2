@@ -12,7 +12,7 @@ ob_logger: Logger | None = None
 
 
 class Algo:
-    def __init__(self, pair_df: dt.PairDf, symbol: str):
+    def __init__(self, pair_df: dt.PairDf, symbol: str, params):
         # Set up the logger to be used in this module
         global ob_logger
         if ob_logger is None:
@@ -22,6 +22,7 @@ class Algo:
         self.symbol: str = symbol
         self.zigzag_df: Optional[dt.ZigZagDf] = None
         self.ob_list: Optional[list[OrderBlock]] = None
+        self.params = params
 
     def find_relative_pivot(self, zigzag_pdi, idx, delta) -> int | None:
         """
@@ -53,12 +54,12 @@ class Algo:
         """
 
         # Compute rolling max and min for high and low columns
-        rolling_high_max = self.pair_df.high.rolling(window=constants.zigzag_window_size).max()
-        rolling_low_min = self.pair_df.low.rolling(window=constants.zigzag_window_size).min()
+        rolling_high_max = self.pair_df.high.rolling(window=self.params.zigzag_window_size).max()
+        rolling_low_min = self.pair_df.low.rolling(window=self.params.zigzag_window_size).min()
 
         # Determine peaks and valleys
-        hh_sentiments = self.pair_df.iloc[constants.zigzag_window_size:].high >= rolling_high_max.iloc[constants.zigzag_window_size:]
-        ll_sentiments = self.pair_df.iloc[constants.zigzag_window_size:].low <= rolling_low_min.iloc[constants.zigzag_window_size:]
+        hh_sentiments = self.pair_df.iloc[self.params.zigzag_window_size:].high >= rolling_high_max.iloc[self.params.zigzag_window_size:]
+        ll_sentiments = self.pair_df.iloc[self.params.zigzag_window_size:].low <= rolling_low_min.iloc[self.params.zigzag_window_size:]
 
         # Check peak and valley conditions. The pure_ prefix means the candles which ONLY register a peak or a valley, not both. the bidir_ prefix
         # denotes candles that register both.
@@ -167,7 +168,7 @@ class Algo:
 
             return msb_list
 
-        fib_retracement_increment_factor = 1 + constants.fib_retracement_coeff
+        fib_retracement_increment_factor = 1 + self.params.fib_retracement_coeff
         short_msbs = find_msb('valley', lambda current_val, next_next_val: next_next_val < current_val,
                               lambda current_val, next_val: next_val - (next_val - current_val) * fib_retracement_increment_factor)
         long_msbs = find_msb('peak', lambda current_val, next_next_val: next_next_val > current_val,
@@ -215,7 +216,7 @@ class Algo:
                                         time=base_candle_time,
                                         high=base_candle_high,
                                         low=base_candle_low)
-                ob = OrderBlock(base_candle, msb_point.type, formation_pdi=msb_point.formation_pdi + 1)
+                ob = OrderBlock(base_candle, msb_point.type, formation_pdi=msb_point.formation_pdi + 1, params=self.params)
                 ob_list.append(ob)
 
             except IndexError:
@@ -239,7 +240,7 @@ class Algo:
         for ob in long_order_blocks:
             # print(ob.formation_pdi)
             # Close the oldest OB if the limit is exceeded
-            if len(active_long_obs) >= constants.max_concurrent:
+            if len(active_long_obs) >= self.params.max_concurrent:
                 oldest_ob = active_long_obs.pop(0)
                 oldest_ob.end_pdi = ob.formation_pdi - 1
                 # print(f'Max concurrent OB reached. Set end_pdi for {oldest_ob} to {ob.formation_pdi - 1}')
@@ -250,7 +251,7 @@ class Algo:
         for ob in short_order_blocks:
             # print(ob.formation_pdi)
             # Close the oldest OB if the limit is exceeded
-            if len(active_short_obs) >= constants.max_concurrent:
+            if len(active_short_obs) >= self.params.max_concurrent:
                 oldest_ob = active_short_obs.pop(0)
                 oldest_ob.end_pdi = ob.formation_pdi - 1
                 # print(f'Max concurrent OB reached. Set end_pdi for {oldest_ob} to {ob.formation_pdi - 1}')
@@ -367,11 +368,11 @@ class Algo:
         There are certain rules for processing the events.
         1) Targets and stoplosses can only occur after entries have happened.
         2) Entries can only happen within the active region, which is after the formation_pdi and before the end_time.
-        3) After a full target, an order block is still valid for entry for a maximum of constants.max_bounces times. The number of remaining bounces
+        3) After a full target, an order block is still valid for entry for a maximum of self.params.max_bounces times. The number of remaining bounces
            for each order block will be saved to a property on it, and it will be reduced by 1 every time a full target happens.
         4) After a stoploss, the order block will become unavailable for entry. This is achieved by setting OrderBlock.remaining_bounces to 0 after a
            stoploss event has happened after entry without achieving any targets.
-        5) According to the trailing stoploss configuration (constants.trailing_sl_target_id), the stoploss will be placed at the entry once the
+        5) According to the trailing stoploss configuration (self.params.trailing_sl_target_id), the stoploss will be placed at the entry once the
            respective target has been hit. This means if trailing_sl_target_id==1, after target 1 is achieved, the next entry (0 in events_array) to
            be hit would be the stoploss, and would result in the position exiting, but this would not trigger rule #4, and after a trailing stoploss
            is hit, the OB is still valid for entry.
@@ -483,7 +484,7 @@ class Algo:
 
                         # The price level to put the trailing stoploss at. If the target is at that level, the trailing stoploss variable is set to
                         # true. This means the next time price reaches a 0 event, it will trigger a TRAILING exit status code.
-                        if event == constants.trailing_sl_target_id:
+                        if event == self.params.trailing_sl_target_id:
                             trailing_triggered = True
 
                     # Entry price level events

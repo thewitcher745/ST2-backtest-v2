@@ -9,7 +9,7 @@ from utils import constants
 
 
 class OrderBlock:
-    def __init__(self, base_candle: pd.Series | dt.Candle, ob_type: str, formation_pdi: int):
+    def __init__(self, base_candle: pd.Series | dt.Candle, ob_type: str, formation_pdi: int, params):
         if isinstance(base_candle, pd.Series):
             self.base_candle_pdi = base_candle.name
         elif isinstance(base_candle, dt.Candle):
@@ -31,10 +31,10 @@ class OrderBlock:
         self.height = abs(self.top - self.bottom)
 
         # Each time an entry is achieved, the number of remaining bounces decreases by 1
-        self.remaining_bounces = constants.max_bounces
+        self.remaining_bounces = params.max_bounces
 
         # The position formed by the OrderBLock
-        self.position = Position(self)
+        self.position = Position(self, params)
 
         # A list of positions that have been exit, this will be compiled into a report as the output.
         self.exit_positions = []

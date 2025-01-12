@@ -1,5 +1,4 @@
 import pandas as pd
-from line_profiler import profile
 
 from algo_code.algo import Algo
 from algo_code.run_algo import run_algo
@@ -9,9 +8,13 @@ from utils.plotting import PlottingTool
 
 plot_results = False
 
+all_pairs_exit_positions = []
 for pair_name in get_pair_list(constants.timeframe):
-    pair_positions = run_algo(pair_name, constants.timeframe)
-    # all_positions.to_csv(f'./reports/all_positions_{pair_name}.csv')
+    pair_exit_positions = run_algo(pair_name, constants)
+    all_pairs_exit_positions.extend(pair_exit_positions)
+
+all_positions_df = pd.DataFrame(all_pairs_exit_positions)
+all_positions_df.to_csv(f'./reports/all_positions.csv')
 
 # if __name__ == '__main__' and plot_results:
 #     pt = PlottingTool()
