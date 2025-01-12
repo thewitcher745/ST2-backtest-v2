@@ -2,7 +2,6 @@ import pandas as pd
 from logging import Logger
 from typing import Optional, Union
 import numpy as np
-from line_profiler import profile
 
 from algo_code.order_block import OrderBlock
 from utils.logger import LoggerSingleton
@@ -288,7 +287,6 @@ class Algo:
 
         return list(times)
 
-    @profile
     def calc_events_array(self):
         """
         This function will return an array which represents the events that each candle triggers for each order block. The array will start from the
@@ -428,7 +426,7 @@ class Algo:
 
                 last_target = 0
                 trailing_triggered = False
-                target_hit_pdis = []
+                target_hit_pdis = np.array([], dtype='int')
 
                 for event_index, event in enumerate(events_after_entry):
                     # 0.5 events (NO_EVENT candles) don't do anything.
@@ -442,7 +440,7 @@ class Algo:
                         # If a full-target event happens, the rest of the target hit PDI's list should be filled by the current PDI, assuming the
                         # current candle has hit all the remaining targets.
                         exit_pdi = first_entry_index + event_array_start_index + ob.formation_pdi + event_index
-                        target_hit_pdis.extend([exit_pdi] * (int(n_targets) - len(target_hit_pdis)))
+                        target_hit_pdis = np.concat((target_hit_pdis, np.array([exit_pdi] * (int(n_targets) - len(target_hit_pdis)))))
 
                         ob.position.exit(symbol=self.symbol,
                                          pair_df_times=pair_df_times,
@@ -480,7 +478,7 @@ class Algo:
                         # If the now-found target-hitting candle registers a higher target than the previously registered one, append it to the
                         # targets hit.
                         if event > last_target:
-                            target_hit_pdis.append(first_entry_index + event_array_start_index + ob.formation_pdi + event_index)
+                            target_hit_pdis = np.append(target_hit_pdis, first_entry_index + event_array_start_index + ob.formation_pdi + event_index)
                             last_target = event
 
                         # The price level to put the trailing stoploss at. If the target is at that level, the trailing stoploss variable is set to

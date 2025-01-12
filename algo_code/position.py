@@ -2,6 +2,7 @@ from typing import Union, Literal
 
 import numpy as np
 import pandas as pd
+from line_profiler import profile
 
 import algo_code.position_prices_setup as setup
 import utils.constants as constants
@@ -20,10 +21,10 @@ class Position:
         self.highest_target: int = 0
         self.target_hit_pdis: list[int] = []
         self.exit_pdi = None
-        self.portioned_qty = []
+        self.portioned_qty: np.ndarray = np.array([])
         self.net_profit = None
 
-        self.target_list = []
+        self.target_list: np.ndarray = np.array([])
         self.stoploss = None
 
         # Set up the target list nd stoploss using a function which operates on the "self" object and directly manipulates the instance.
@@ -43,6 +44,8 @@ class Position:
 
         self.entry_pdi = entry_pdi
         self.qty = constants.used_capital / self.entry_price
+        target_count = len(self.target_list)
+        self.portioned_qty = np.array([self.qty / target_count] * target_count)
         self.status = "ENTERED"
 
     def exit(self,
@@ -65,11 +68,43 @@ class Position:
         Returns:
             dict: A dict containing the exit parameters of the position, to be added to its parent OB's exit_positions list.
         """
+
+        # Net profit calculation
+        n_targets_hit = len(target_hit_pdis)
+        targets_hit = self.target_list[:n_targets_hit]
+        targets_qty = self.portioned_qty[:n_targets_hit]
+        stopped_qty = self.qty - sum(targets_qty)
+
+        if self.type == 'long':
+            loss_from_entry = self.qty * self.entry_price
+            gain_from_targets = sum(targets_qty * targets_hit)
+            # If the exit status is anything but FULL_TARGET, that means a stoploss has been hit, therefore the exit price is the stoploss OR
+            # the trailing stoploss
+            if not exit_status.startswith('FULL_TARGET'):
+                gain_from_stoploss = stopped_qty * exit_price
+            else:
+                gain_from_stoploss = 0
+
+            net_profit = gain_from_targets + gain_from_stoploss - loss_from_entry
+
+        else:
+            gain_from_entry = self.qty * self.entry_price
+            loss_from_targets = sum(targets_qty * targets_hit)
+
+            # If the exit status is anything but FULL_TARGET, that means a stoploss has been hit, therefore the exit price is the stoploss OR
+            # the trailing stoploss
+            if not exit_status.startswith('FULL_TARGET'):
+                loss_from_stoploss = stopped_qty * exit_price
+            else:
+                loss_from_stoploss = 0
+
+            net_profit = gain_from_entry - loss_from_targets - loss_from_stoploss
+
         exit_parameters = {
             'Pair name': symbol,
             'Position ID': self.parent_ob.id,
             'Status': exit_status,
-            'Net profit': 0,
+            'Net profit': net_profit,
             'Quantity': self.qty,
             'Entry time': pair_df_times[self.entry_pdi],
             'Exit time': pair_df_times[exit_pdi],
