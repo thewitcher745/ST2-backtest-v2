@@ -508,3 +508,5 @@ class Algo:
                             event_array_start_index += event_index + first_entry_index + 1
 
                             break
+                else:
+                    break
