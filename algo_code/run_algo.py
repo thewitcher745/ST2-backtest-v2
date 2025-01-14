@@ -2,6 +2,7 @@ import pandas as pd
 
 from algo_code.algo import Algo
 from utils.general_utils import load_local_data
+from utils.plotting import PlottingTool
 
 
 def run_algo(pair_name, params) -> list:
@@ -18,4 +19,4 @@ def run_algo(pair_name, params) -> list:
     for ob in order_blocks:
         pair_exit_positions.extend(ob.exit_positions)
 
-    return pair_exit_positions
+    return pair_exit_positions, algo

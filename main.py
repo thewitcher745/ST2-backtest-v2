@@ -9,18 +9,28 @@ from utils.plotting import PlottingTool
 plot_results = False
 
 all_pairs_exit_positions = []
+pair_counter = 1
+n_pairs = len(get_pair_list(constants.timeframe))
+
 for pair_name in get_pair_list(constants.timeframe):
-    pair_exit_positions = run_algo(pair_name, constants)
+    print(f'Processing {pair_counter} / {n_pairs}: {pair_name}')
+
+    algo_outputs = run_algo(pair_name, constants)
+    pair_exit_positions = algo_outputs[0]
+    algo = algo_outputs[1]
     all_pairs_exit_positions.extend(pair_exit_positions)
 
-all_positions_df = pd.DataFrame(all_pairs_exit_positions)
-all_positions_df.to_csv(f'./reports/all_positions.csv')
+    pair_counter += 1
 
-# if __name__ == '__main__' and plot_results:
-#     pt = PlottingTool()
-#     pt.draw_candlesticks(pair_df)
-#     # pt.register_msb_point_updates(msb_points_df)
-#     pt.register_ob_updates(order_blocks)
-#     pt.draw_zigzag(algo.zigzag_df)
-#
-#     pt.show()
+all_positions_df = pd.DataFrame(all_pairs_exit_positions)
+
+all_positions_df.to_excel(f'./reports/all_positions.xlsx')
+
+if __name__ == '__main__' and plot_results:
+    pt = PlottingTool()
+    pt.draw_candlesticks(algo.pair_df)
+    # pt.register_msb_point_updates(msb_points_df)
+    pt.register_ob_updates(algo.ob_list)
+    pt.draw_zigzag(algo.zigzag_df)
+
+    pt.show()

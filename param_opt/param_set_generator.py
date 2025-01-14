@@ -4,10 +4,10 @@ import itertools
 from utils import constants
 
 param_cases = {
-    'zigzag_window_size': [5, 6, 7, 8, 9, 10, 11, 12],
+    'zigzag_window_size': [9, 10, 11, 12, 13, 14, 15],
     'stoploss_coeff': [1, 1.2, 1.4, 1.6, 1.8, 2],
     'target_coeff': [0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2],
-    'max_bounces': [1, 2, 3, 4, 5],
+    'max_bounces': [1, 2, 3],
     'max_concurrent': [1, 2, 3, 4, 5]
 }
 
