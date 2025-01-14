@@ -21,11 +21,6 @@ def load_local_data(pair_name: str = "BTCUSDT", timeframe: str = "15m") -> dt.Pa
 
     pair_df = pd.DataFrame(pd.read_hdf(hdf_path))
 
-    # Add the candle color to the return value
-    pair_df_closes = pair_df.close.to_numpy()
-    pair_df_opens = pair_df.open.to_numpy()
-    pair_df['candle_color'] = np.where(pair_df_closes > pair_df_opens, 'green', 'red')
-
     return dt.PairDf(pair_df)
 
 
