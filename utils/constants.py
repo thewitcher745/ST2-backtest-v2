@@ -1,4 +1,10 @@
+import argparse
 from dotenv import dotenv_values
+
+# Set up argument parser
+parser = argparse.ArgumentParser()
+parser.add_argument('--output', type=str, help='File name of the output')
+args = parser.parse_args()
 
 params = dotenv_values('.env.params')
 

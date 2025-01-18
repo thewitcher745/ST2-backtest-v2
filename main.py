@@ -24,7 +24,7 @@ for pair_name in get_pair_list(constants.timeframe):
 
 all_positions_df = pd.DataFrame(all_pairs_exit_positions)
 
-all_positions_df.to_excel(f'./reports/all_positions.xlsx')
+all_positions_df.to_excel(f'./reports/{constants.output_filename}')
 
 if __name__ == '__main__' and plot_results:
     pt = PlottingTool()
