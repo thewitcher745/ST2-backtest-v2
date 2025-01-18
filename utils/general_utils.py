@@ -56,3 +56,8 @@ def convert_timestamp_to_readable(timestamp: pd.Timestamp) -> str:
     readable_format = f"{utc.year}.{utc.month}.{utc.day}/{two_char_long(utc.hour)}:{two_char_long(utc.minute)}:{two_char_long(utc.second)}"
 
     return readable_format
+
+
+def calc_candle_percentage(candle: dt.Candle):
+    # Calculate the candle height as a percentage of the average of its low and high
+    return abs(candle.high - candle.low) / (candle.high + candle.low) * 2 * 100

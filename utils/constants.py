@@ -17,3 +17,11 @@ max_bounces = int(params['max_bounces'])
 max_concurrent = int(params['max_concurrent'])
 used_capital = float(params['used_capital'])
 trailing_sl_target_id = float(params['trailing_sl_target_id'])
+
+ob_size_lower_limit = float(params['ob_size_lower_limit'])    # In percentage of entry price
+ob_size_upper_limit = float(params['ob_size_upper_limit'])
+n_targets = int(params['n_targets'])
+
+output_filename = args.output if args.output else 'all_positions.xlsx'
+
+

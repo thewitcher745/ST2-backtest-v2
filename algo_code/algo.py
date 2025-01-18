@@ -6,6 +6,7 @@ import numpy as np
 from algo_code.order_block import OrderBlock
 from utils.logger import LoggerSingleton
 import utils.datatypes as dt
+from utils.general_utils import calc_candle_percentage
 from utils import constants
 
 ob_logger: Logger | None = None
@@ -216,8 +217,11 @@ class Algo:
                                         time=base_candle_time,
                                         high=base_candle_high,
                                         low=base_candle_low)
-                ob = OrderBlock(base_candle, msb_point.type, formation_pdi=msb_point.formation_pdi + 1, params=self.params)
-                ob_list.append(ob)
+
+                if self.params.ob_size_lower_limit <= calc_candle_percentage(base_candle) < self.params.ob_size_upper_limit:
+                    ob = OrderBlock(base_candle, msb_point.type, formation_pdi=msb_point.formation_pdi + 1, params=self.params)
+
+                    ob_list.append(ob)
 
             except IndexError:
                 continue
