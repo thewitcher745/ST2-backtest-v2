@@ -1,12 +1,10 @@
 import pandas as pd
 
 from algo_code.algo import Algo
-from utils.general_utils import load_local_data
-from utils.plotting import PlottingTool
+import utils.datatypes as dt
 
 
-def run_algo(pair_name, params) -> list:
-    pair_df = load_local_data(pair_name, params.timeframe).reset_index()
+def run_algo(pair_name: str, pair_df: dt.PairDf, params) -> tuple[list, Algo]:
     algo = Algo(pair_df, pair_name, params)
     algo.init_zigzag()
     algo.find_msb_points()

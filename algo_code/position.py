@@ -1,7 +1,5 @@
-from typing import Union, Literal
 
 import numpy as np
-import pandas as pd
 
 import algo_code.position_prices_setup as setup
 import utils.constants as constants
@@ -108,9 +106,9 @@ class Position:
             'Status': exit_status,
             'Net profit': net_profit,
             'Quantity': self.qty,
-            'Entry time': pd.to_datetime(pair_df_times[self.entry_pdi], utc=True).tz_localize(None),
-            'Exit time': pd.to_datetime(pair_df_times[exit_pdi], utc=True).tz_localize(None),
-            'Target hit times': [pd.to_datetime(pair_df_times[pdi], utc=True).tz_localize(None) for pdi in target_hit_pdis],
+            'Entry time': pair_df_times[self.entry_pdi],
+            'Exit time': pair_df_times[exit_pdi],
+            'Target hit times': pair_df_times[target_hit_pdis].copy(),
             'Type': self.type,
             'Entry price': self.entry_price,
             'Exit price': exit_price,

@@ -15,7 +15,9 @@ n_pairs = len(get_pair_list(constants.timeframe))
 for pair_name in get_pair_list(constants.timeframe):
     print(f'Processing {pair_counter} / {n_pairs}: {pair_name}')
 
-    algo_outputs = run_algo(pair_name, constants)
+    pair_df = load_local_data(pair_name, constants.timeframe).reset_index()
+
+    algo_outputs = run_algo(pair_name, pair_df, constants)
     pair_exit_positions = algo_outputs[0]
     algo = algo_outputs[1]
     all_pairs_exit_positions.extend(pair_exit_positions)
@@ -23,6 +25,7 @@ for pair_name in get_pair_list(constants.timeframe):
     pair_counter += 1
 
 all_positions_df = pd.DataFrame(all_pairs_exit_positions)
+all_positions_df['Target hit times'] = all_positions_df['Target hit times'].apply(lambda x: pd.DatetimeIndex(x).tz_localize(None).to_list())
 
 all_positions_df.to_excel(f'./reports/{constants.output_filename}')
 
