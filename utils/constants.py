@@ -4,6 +4,9 @@ from dotenv import dotenv_values
 # Set up argument parser
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', type=str, help='File name of the output')
+parser.add_argument('--pl', type=str, help='File name of the pair list CSV')
+parser.add_argument('--position_type', type=str, help='Limit the direction of the positions (short/long)')
+
 args = parser.parse_args()
 
 params = dotenv_values('.env.params')
@@ -23,5 +26,7 @@ ob_size_upper_limit = float(params['ob_size_upper_limit'])
 n_targets = int(params['n_targets'])
 
 output_filename = args.output if args.output else 'all_positions.xlsx'
+pair_list_filename = args.pl if args.pl else None
+position_type = args.position_type.lower() if args.position_type else None
 
 

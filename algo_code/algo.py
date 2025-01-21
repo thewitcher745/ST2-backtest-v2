@@ -219,9 +219,9 @@ class Algo:
                                         low=base_candle_low)
 
                 if self.params.ob_size_lower_limit <= calc_candle_percentage(base_candle) < self.params.ob_size_upper_limit:
-                    ob = OrderBlock(base_candle, msb_point.type, formation_pdi=msb_point.formation_pdi + 1, params=self.params)
-
-                    ob_list.append(ob)
+                    if not constants.position_type or msb_point.type == constants.position_type:
+                        ob = OrderBlock(base_candle, msb_point.type, formation_pdi=msb_point.formation_pdi + 1, params=self.params)
+                        ob_list.append(ob)
 
             except IndexError:
                 continue
@@ -488,7 +488,7 @@ class Algo:
 
                         # The price level to put the trailing stoploss at. If the target is at that level, the trailing stoploss variable is set to
                         # true. This means the next time price reaches a 0 event, it will trigger a TRAILING exit status code.
-                        if event == self.params.trailing_sl_target_id:
+                        if self.params.trailing_sl_target_id != 0 and event == self.params.trailing_sl_target_id:
                             trailing_triggered = True
 
                     # Entry price level events

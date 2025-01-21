@@ -3,6 +3,7 @@ import pandas as pd
 import os
 
 import utils.datatypes as dt
+from utils import constants
 
 
 def load_local_data(pair_name: str = "BTCUSDT", timeframe: str = "15m") -> dt.PairDf:
@@ -25,12 +26,18 @@ def load_local_data(pair_name: str = "BTCUSDT", timeframe: str = "15m") -> dt.Pa
 
 
 def get_pair_list(timeframe: str = '15m'):
-    # Get the pairs in cached_data/<timeframe> folder
+    # Get the pairs in cached_data/<timeframe> folder, or, if given, the pair list given through the --pl runtime argument
+    if constants.pair_list_filename:
+        pair_list = pd.read_csv(f'./{constants.pair_list_filename}', header=None)[0].tolist()
+        print(f'Running on {len(pair_list)} pairs')
+        return pair_list
+
     pair_list = []
     for file in os.listdir(f'./cached_data/{timeframe}'):
         if file.endswith(".hdf5"):
             pair_list.append(file.replace('.hdf5', ''))
 
+    print(f'Running on {len(pair_list)} pairs')
     return pair_list
 
 

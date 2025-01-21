@@ -6,6 +6,7 @@ from algo_code.algo import Algo
 from algo_code.run_algo import run_algo
 from param_opt.fitness_function import calc_fitness_parameters
 from param_opt.param_set_generator import parameter_sets
+from utils import constants
 from utils.general_utils import get_pair_list
 
 plot_results = False
@@ -16,6 +17,9 @@ start_time = time.time()
 
 print("Size of parameter space: ", len(parameter_sets))
 counter = 1
+
+pair_list = get_pair_list(constants.timeframe)
+
 for params, permutation_params_dict in parameter_sets:
     print(f"Running simulation {counter} of {len(parameter_sets)}")
     if counter % 10 == 0:
@@ -28,8 +32,8 @@ for params, permutation_params_dict in parameter_sets:
 
     counter += 1
     all_pairs_exit_positions = []
-    for pair_name in get_pair_list(params.timeframe):
-        pair_positions = run_algo(pair_name, params)
+    for pair_name in pair_list:
+        pair_positions = run_algo(pair_name, params)[0]
         all_pairs_exit_positions.extend(pair_positions)
 
     all_positions_df = pd.DataFrame(all_pairs_exit_positions)
@@ -43,4 +47,4 @@ for params, permutation_params_dict in parameter_sets:
 
 # Convert the list of dictionaries to a DataFrame and write to CSV
 results_df = pd.DataFrame(results)
-results_df.to_csv('./reports/param_opt/results.csv', index=False)
+results_df.to_csv(f'./reports/param_opt/{constants.output_filename}/results.csv', index=False)
