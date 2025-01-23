@@ -59,3 +59,19 @@ for logging, global configuration settings, and calculating a lag-based zigzag o
   reslting in more than 600% increase in speed and an 80-90% decrease in execution time.
 - Added pair-list support: Now fetches the pairs to process from a folder and runs them in succession.
 - Updated the charting library with new end_pdi logic for the order blocks.
+
+### ver b0.5
+
+- Implemented custom parameter passing, useful for creating different sets of parameters and using those instead of the ones in `constants.py`.
+- Implemented a new launchable main file, `main_param_opt.py`, which will run a number of cases (defined in `/param_opt/param_set_generator.py`), and
+  produce a CSV file containing all combinations of those parameters, along with a set of fitness variables defined
+  in `/param_opt/fitness_function.py`.
+- The output of said code will be in `/reports/param_opt`, and it can be passed into an appropriate program to run more statistical analysis on the
+  results.
+- Added extra runtime arguments, such as `--output`, which customizes the name of the output file (or directory, in the case of uising the parameter
+  optimizer), `--pl` which indicates the pair list to use and `--timeframe` to indicate the timeframe to run the backtest on.
+- Added position type and OB box size limiting. The OB box size limiting is done through `constants.py`, while the position type is set through
+  the `--position_type` runtime argument. All runtime arguments are applied both to `main.py` and `main_param_opt.py`.
+- Number of targets is now set through a `constants.py` parameter as well. This is probably a temporary solution to having dynamic order block
+  target_coeff and count.
+- Heavily optimized and modularized most of the functions in the backtest which took up the majority of the execution time.

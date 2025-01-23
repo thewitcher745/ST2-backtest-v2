@@ -372,8 +372,8 @@ class Algo:
         There are certain rules for processing the events.
         1) Targets and stoplosses can only occur after entries have happened.
         2) Entries can only happen within the active region, which is after the formation_pdi and before the end_time.
-        3) After a full target, an order block is still valid for entry for a maximum of self.params.max_bounces times. The number of remaining bounces
-           for each order block will be saved to a property on it, and it will be reduced by 1 every time a full target happens.
+        3) After a full target, an order block is still valid for entry for a maximum of self.params.max_bounces times. The number of remaining
+           bounces for each order block will be saved to a property on it, and it will be reduced by 1 every time a full target happens.
         4) After a stoploss, the order block will become unavailable for entry. This is achieved by setting OrderBlock.remaining_bounces to 0 after a
            stoploss event has happened after entry without achieving any targets.
         5) According to the trailing stoploss configuration (self.params.trailing_sl_target_id), the stoploss will be placed at the entry once the

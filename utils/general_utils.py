@@ -68,3 +68,12 @@ def convert_timestamp_to_readable(timestamp: pd.Timestamp) -> str:
 def calc_candle_percentage(candle: dt.Candle):
     # Calculate the candle height as a percentage of the average of its low and high
     return abs(candle.high - candle.low) / (candle.high + candle.low) * 2 * 100
+
+
+def format_time(seconds):
+    """
+    Convert seconds to a readable format (HH:MM:SS).
+    """
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"

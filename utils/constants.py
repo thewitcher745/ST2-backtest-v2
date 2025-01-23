@@ -6,6 +6,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--output', type=str, help='File name of the output')
 parser.add_argument('--pl', type=str, help='File name of the pair list CSV')
 parser.add_argument('--position_type', type=str, help='Limit the direction of the positions (short/long)')
+parser.add_argument('--timeframe', type=str, help='Override the timeframe set by the params file.')
 
 args = parser.parse_args()
 
@@ -28,5 +29,6 @@ n_targets = int(params['n_targets'])
 output_filename = args.output if args.output else 'all_positions.xlsx'
 pair_list_filename = args.pl if args.pl else None
 position_type = args.position_type.lower() if args.position_type else None
+timeframe = args.timeframe if args.timeframe else params['timeframe']
 
 
