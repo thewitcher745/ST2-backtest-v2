@@ -64,8 +64,8 @@ def multiprocessing_version(pair_list, all_pairs_data):
     for i, (params, permutation_params_dict) in enumerate(parameter_sets, 1):
         all_pairs_exit_positions = []
         with Pool() as pool:
-            results = pool.starmap(process_pair, [(pair_name, params, all_pairs_data[pair_name]) for pair_name in pair_list])
-            for result in results:
+            backtest_results = pool.starmap(process_pair, [(pair_name, params, all_pairs_data[pair_name]) for pair_name in pair_list])
+            for result in backtest_results:
                 all_pairs_exit_positions.extend(result)
 
         all_positions_df = pd.DataFrame.from_dict(all_pairs_exit_positions)
@@ -90,6 +90,7 @@ def multiprocessing_version(pair_list, all_pairs_data):
             print()
 
     # Convert the list of dictionaries to a DataFrame and write to CSV
+
     results_df = pd.DataFrame(results)
     if not os.path.exists(f'./reports/param_opt/{constants.output_filename}'):
         os.mkdir(f'./reports/param_opt/{constants.output_filename}')

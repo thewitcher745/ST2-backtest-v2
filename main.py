@@ -25,6 +25,9 @@ for pair_name in get_pair_list(constants.timeframe):
     pair_counter += 1
 
 all_positions_df = pd.DataFrame(all_pairs_exit_positions)
+
+all_positions_df['Entry time'] = pd.DatetimeIndex(all_positions_df['Entry time']).tz_localize(None)
+all_positions_df['Exit time'] = pd.DatetimeIndex(all_positions_df['Exit time']).tz_localize(None)
 all_positions_df['Target hit times'] = all_positions_df['Target hit times'].apply(lambda x: pd.DatetimeIndex(x).tz_localize(None).to_list())
 
 all_positions_df.to_excel(f'./reports/{constants.output_filename}')
