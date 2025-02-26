@@ -7,6 +7,7 @@ parser.add_argument('--output', type=str, help='File name of the output')
 parser.add_argument('--pl', type=str, help='File name of the pair list CSV')
 parser.add_argument('--position_type', type=str, help='Limit the direction of the positions (short/long)')
 parser.add_argument('--timeframe', type=str, help='Override the timeframe set by the params file.')
+parser.add_argument('--processes', type=str, help='Maximum number of processes to use while multiprocessing.')
 
 args = parser.parse_args()
 
@@ -30,5 +31,6 @@ output_filename = args.output if args.output else 'all_positions.xlsx'
 pair_list_filename = args.pl if args.pl else None
 position_type = args.position_type.lower() if args.position_type else None
 timeframe = args.timeframe if args.timeframe else params['timeframe']
+max_processes = int(args.processes) if args.processes else 4
 
 
