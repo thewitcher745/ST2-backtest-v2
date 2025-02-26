@@ -60,10 +60,11 @@ def multiprocessing_version(pair_list, all_pairs_data):
 
     print("Running multiprocessing version...")
     total_parameter_sets = len(parameter_sets)  # Total number of parameter sets to process
+    print(f'Parameter space size: {total_parameter_sets}')
 
     for i, (params, permutation_params_dict) in enumerate(parameter_sets, 1):
         all_pairs_exit_positions = []
-        with Pool() as pool:
+        with Pool(processes=constants.max_processes) as pool:
             backtest_results = pool.starmap(process_pair, [(pair_name, params, all_pairs_data[pair_name]) for pair_name in pair_list])
             for result in backtest_results:
                 all_pairs_exit_positions.extend(result)
