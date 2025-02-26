@@ -27,7 +27,7 @@ class Position:
         self.params = params
 
         # Set up the target list nd stoploss using a function which operates on the "self" object and directly manipulates the instance.
-        setup.default_1234(self, params)
+        setup.small_box_1234(self, params)
 
     def enter(self, entry_pdi: int):
         """

@@ -29,6 +29,7 @@ class OrderBlock:
         self.top = base_candle.high
         self.bottom = base_candle.low
         self.height = abs(self.top - self.bottom)
+        self.height_percentage = gen_utils.calc_candle_percentage(base_candle)
 
         # Each time an entry is achieved, the number of remaining bounces decreases by 1
         self.remaining_bounces = params.max_bounces
